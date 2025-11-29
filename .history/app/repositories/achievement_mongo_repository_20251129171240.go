@@ -1,0 +1,92 @@
+package repositories
+
+import (
+	"context"
+	"time"
+
+	"UAS-backend/app/models"
+	"UAS-backend/database"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+type AchievementMongoRepository struct{}
+
+var AchievementMongoRepo = &AchievementMongoRepository{}
+
+func collection() *mongo.Collection {
+	return database.MongoDB.Collection("achievements")
+}
+
+//
+// ========================================================
+// CREATE Achievement (MongoDB)
+// ========================================================
+func (r *AchievementMongoRepository) Create(ctx context.Context, a *models.AchievementMongo) (primitive.ObjectID, error) {
+	a.ID = primitive.NewObjectID()
+	a.CreatedAt = time.Now()
+	a.UpdatedAt = time.Now()
+
+	_, err := collection().InsertOne(ctx, a)
+	return a.ID, err
+}
+
+//
+// ========================================================
+// GET BY ID (MongoDB)
+// ========================================================
+func (r *AchievementMongoRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.AchievementMongo, error) {
+	var result models.AchievementMongo
+
+	err := collection().FindOne(ctx, bson.M{"_id": id}).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+//
+// ========================================================
+// UPDATE Achievement (Mahasiswa)
+// ========================================================
+func (r *AchievementMongoRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
+	update["updatedAt"] = time.Now()
+
+	_, err := collection().UpdateOne(ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": update},
+	)
+	return err
+}
+
+//
+// ========================================================
+// SOFT DELETE (Mahasiswa)
+// ========================================================
+func (r *AchievementMongoRepository) SoftDelete(ctx context.Context, id primitive.ObjectID) error {
+	_, err := collection().UpdateOne(ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": bson.M{"deleted": true}},
+	)
+	return err
+}
+
+//
+// ========================================================
+// ATTACHMENT UPLOAD
+// ========================================================
+func (r *AchievementMongoRepository) AddAttachment(ctx context.Context, id primitive.ObjectID, att models.Attachment) error {
+	att.UploadedAt = time.Now()
+
+	_, err := collection().UpdateOne(ctx,
+		bson.M{"_id": id},
+		bson.M{
+			"$push": bson.M{"attachments": att},
+			"$set":  bson.M{"updatedAt": time.Now()},
+		},
+	)
+
+	return err
+}
