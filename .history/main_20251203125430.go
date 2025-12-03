@@ -23,7 +23,7 @@ func main() {
 
 	// Register Routes
 	routes.RegisterAuthRoutes(app)
-	routes.RegisterUserRoutes(app) 
+	routes.RegisterUserRoutes(app) // <-- PENTING! Daftarkan User Routes
 	routes.RegisterAchievementRoutes(app)
 
 	// Start server

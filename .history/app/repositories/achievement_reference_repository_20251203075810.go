@@ -8,7 +8,7 @@ import (
 )
 
 // -------------------------------------------------------
-// CreateAchievementReference
+// CreateAchievementReference -> insert reference
 // -------------------------------------------------------
 func CreateAchievementReference(ctx context.Context, ref *models.AchievementReference) error {
 	_, err := database.DB.Exec(ctx,
@@ -73,7 +73,7 @@ func SetAchievementRejectionNote(ctx context.Context, id string, note string) er
 }
 
 // -------------------------------------------------------
-// SetVerifiedBy (Dosen Wali Verifikasi)
+// SetVerifiedBy -> DOSEN VERIFIKASI
 // -------------------------------------------------------
 func SetVerifiedBy(ctx context.Context, id string, lecturerID string) error {
 	_, err := database.DB.Exec(ctx,
@@ -125,15 +125,14 @@ func GetAchievementReferencesByStudentIDs(ctx context.Context, studentIDs []stri
 }
 
 // -------------------------------------------------------
-// SoftDeleteAchievementReference (Use Status Deleted)
+// SoftDeleteAchievementReference
 // -------------------------------------------------------
 func SoftDeleteAchievementReference(ctx context.Context, id string) error {
 	_, err := database.DB.Exec(ctx,
 		`UPDATE achievement_references 
-		 SET status=$2, updated_at=NOW() 
+		 SET deleted=true, updated_at=NOW() 
 		 WHERE id=$1`,
 		id,
-		models.StatusDeleted,
 	)
 	return err
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // -------------------------------------------------------
-// CreateAchievementReference
+// CreateAchievementReference -> insert reference (status draft)
 // -------------------------------------------------------
 func CreateAchievementReference(ctx context.Context, ref *models.AchievementReference) error {
 	_, err := database.DB.Exec(ctx,
@@ -21,7 +21,7 @@ func CreateAchievementReference(ctx context.Context, ref *models.AchievementRefe
 }
 
 // -------------------------------------------------------
-// GetAchievementReferenceByID
+// GetAchievementReferenceByID -> ambil reference by primary id
 // -------------------------------------------------------
 func GetAchievementReferenceByID(ctx context.Context, id string) (*models.AchievementReference, error) {
 
@@ -29,7 +29,8 @@ func GetAchievementReferenceByID(ctx context.Context, id string) (*models.Achiev
 		`SELECT id, student_id, mongo_achievement_id, status, 
 				submitted_at, verified_at, verified_by, rejection_note,
 				created_at, updated_at
-		 FROM achievement_references WHERE id=$1`,
+		 FROM achievement_references 
+		 WHERE id = $1`,
 		id,
 	)
 
@@ -39,54 +40,67 @@ func GetAchievementReferenceByID(ctx context.Context, id string) (*models.Achiev
 		&ar.SubmittedAt, &ar.VerifiedAt, &ar.VerifiedBy, &ar.RejectionNote,
 		&ar.CreatedAt, &ar.UpdatedAt,
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &ar, nil
 }
 
 // -------------------------------------------------------
-// UpdateAchievementReferenceStatus
+// UpdateAchievementReferenceStatus -> ubah status submitted/verified/rejected
 // -------------------------------------------------------
 func UpdateAchievementReferenceStatus(ctx context.Context, id string, status string) error {
 
-	_, err := database.DB.Exec(ctx,
-		`UPDATE achievement_references 
-		 SET status=$2, updated_at=NOW()
-		 WHERE id=$1`,
-		id, status,
-	)
+	var query string
+
+	switch status {
+
+	case models.StatusSubmitted:
+		query = `UPDATE achievement_references 
+				 SET status=$2, submitted_at=NOW(), updated_at=NOW() 
+				 WHERE id=$1`
+
+	case models.StatusVerified:
+		query = `UPDATE achievement_references 
+				 SET status=$2, verified_at=NOW(), updated_at=NOW() 
+				 WHERE id=$1`
+
+	case models.StatusRejected:
+		query = `UPDATE achievement_references 
+				 SET status=$2, updated_at=NOW() 
+				 WHERE id=$1`
+
+	default:
+		query = `UPDATE achievement_references 
+				 SET status=$2, updated_at=NOW() 
+				 WHERE id=$1`
+	}
+
+	_, err := database.DB.Exec(ctx, query, id, status)
 	return err
 }
 
+
+
 // -------------------------------------------------------
-// SetAchievementRejectionNote
+// SetAchievementRejectionNote -> dosen input catatan penolakan
 // -------------------------------------------------------
 func SetAchievementRejectionNote(ctx context.Context, id string, note string) error {
+
 	_, err := database.DB.Exec(ctx,
 		`UPDATE achievement_references 
 		 SET rejection_note=$2, status='rejected', updated_at=NOW() 
 		 WHERE id=$1`,
 		id, note,
 	)
+
 	return err
 }
 
 // -------------------------------------------------------
-// SetVerifiedBy (Dosen Wali Verifikasi)
-// -------------------------------------------------------
-func SetVerifiedBy(ctx context.Context, id string, lecturerID string) error {
-	_, err := database.DB.Exec(ctx,
-		`UPDATE achievement_references
-		 SET verified_by=$2, verified_at=NOW(), updated_at=NOW()
-		 WHERE id=$1`,
-		id, lecturerID,
-	)
-	return err
-}
-
-// -------------------------------------------------------
-// GetAchievementReferencesByStudentIDs
+// GetAchievementReferencesByStudentIDs -> untuk admin/dosen
 // -------------------------------------------------------
 func GetAchievementReferencesByStudentIDs(ctx context.Context, studentIDs []string) ([]models.AchievementReference, error) {
 
@@ -109,12 +123,11 @@ func GetAchievementReferencesByStudentIDs(ctx context.Context, studentIDs []stri
 	for rows.Next() {
 		var ar models.AchievementReference
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&ar.ID, &ar.StudentID, &ar.MongoAchievementID, &ar.Status,
 			&ar.SubmittedAt, &ar.VerifiedAt, &ar.VerifiedBy, &ar.RejectionNote,
 			&ar.CreatedAt, &ar.UpdatedAt,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 
@@ -125,21 +138,20 @@ func GetAchievementReferencesByStudentIDs(ctx context.Context, studentIDs []stri
 }
 
 // -------------------------------------------------------
-// SoftDeleteAchievementReference (Use Status Deleted)
+// SoftDeleteAchievementReference -> tandai deleted=true (opsional)
 // -------------------------------------------------------
 func SoftDeleteAchievementReference(ctx context.Context, id string) error {
 	_, err := database.DB.Exec(ctx,
 		`UPDATE achievement_references 
-		 SET status=$2, updated_at=NOW() 
+		 SET deleted=true, updated_at=NOW() 
 		 WHERE id=$1`,
 		id,
-		models.StatusDeleted,
 	)
 	return err
 }
 
 // -------------------------------------------------------
-// ListAllAchievementReferences
+// ListAllAchievementReferences -> untuk admin
 // -------------------------------------------------------
 func ListAllAchievementReferences(ctx context.Context) ([]models.AchievementReference, error) {
 
@@ -161,12 +173,11 @@ func ListAllAchievementReferences(ctx context.Context) ([]models.AchievementRefe
 	for rows.Next() {
 		var ar models.AchievementReference
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&ar.ID, &ar.StudentID, &ar.MongoAchievementID, &ar.Status,
 			&ar.SubmittedAt, &ar.VerifiedAt, &ar.VerifiedBy, &ar.RejectionNote,
 			&ar.CreatedAt, &ar.UpdatedAt,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 

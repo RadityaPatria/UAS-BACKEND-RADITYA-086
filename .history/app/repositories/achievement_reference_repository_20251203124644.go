@@ -48,7 +48,7 @@ func GetAchievementReferenceByID(ctx context.Context, id string) (*models.Achiev
 // -------------------------------------------------------
 // UpdateAchievementReferenceStatus
 // -------------------------------------------------------
-func UpdateAchievementReferenceStatus(ctx context.Context, id string, status string) error {
+func UpdateAchievementReferenceTimestamp(ctx context.Context, id string, status string) error {
 
 	_, err := database.DB.Exec(ctx,
 		`UPDATE achievement_references 

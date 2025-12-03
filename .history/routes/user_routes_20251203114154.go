@@ -1,0 +1,23 @@
+package routes
+
+import (
+    "UAS-backend/app/services"
+    "UAS-backend/middleware"
+
+    "github.com/gofiber/fiber/v2"
+)
+
+func RegisterUserRoutes(app *fiber.App) {
+    user := app.Group("/api/v1/users")
+
+    // Hanya Admin yang boleh akses seluruh CRUD user
+    user.Use(middleware.JWTMiddleware)
+    user.Use(middleware.RequireRoles("Admin"))
+
+    user.Get("/", services.GetAllUsers)
+    r.Get("/:id", services.GetUserByID)
+    r.Post("/", services.CreateUser)
+    r.Put("/:id", services.UpdateUser)
+    r.Delete("/:id", services.DeleteUser)
+    r.Put("/:id/role", services.UpdateUserRole)
+}
