@@ -226,19 +226,12 @@ func ListAchievements(c *fiber.Ctx) error {
 func VerifyAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
 	refID := c.Params("id")
-	lecturerID := c.Locals("lecturerID").(string)
+	lecturerID := c.Locals("userID").(string)
 
 	ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
-
-	// cek apakah mahasiswa adalah bimbingan dosen tersebut
-	isAdvisee, err := repositories.IsStudentAdvisee(ctx, ref.StudentID.String(), lecturerID)
-	if err != nil || !isAdvisee {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
-	}
-
 	if ref.Status != models.StatusSubmitted {
 		return c.Status(400).JSON(fiber.Map{"error": "only submitted can be verified"})
 	}
@@ -246,21 +239,16 @@ func VerifyAchievement(c *fiber.Ctx) error {
 	if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusVerified); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-
 	if err := repositories.SetVerifiedBy(ctx, refID, lecturerID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-
 	return c.JSON(fiber.Map{"status": "success", "message": "verified"})
 }
-
 
 // POST /api/v1/achievements/:id/reject  (Dosen Wali)
 func RejectAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
 	refID := c.Params("id")
-	lecturerID := c.Locals("lecturerID").(string)
-
 	var body struct {
 		Note string `json:"note"`
 	}
@@ -272,24 +260,14 @@ func RejectAchievement(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
-
-	// cek apakah mahasiswa adalah advisee dosen tersebut
-	isAdvisee, err := repositories.IsStudentAdvisee(ctx, ref.StudentID.String(), lecturerID)
-	if err != nil || !isAdvisee {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
-	}
-
 	if ref.Status != models.StatusSubmitted {
 		return c.Status(400).JSON(fiber.Map{"error": "only submitted can be rejected"})
 	}
-
 	if err := repositories.SetAchievementRejectionNote(ctx, refID, body.Note); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-
 	return c.JSON(fiber.Map{"status": "success", "message": "rejected"})
 }
-
 
 // GET /api/v1/achievements/:id
 func GetAchievementDetail(c *fiber.Ctx) error {

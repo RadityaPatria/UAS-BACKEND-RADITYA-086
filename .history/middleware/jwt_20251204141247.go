@@ -43,21 +43,20 @@ func JWTMiddleware(c *fiber.Ctx) error {
 
 	c.Locals("userID", userID)
 	c.Locals("role", role)
-	c.Locals("permissions", claims["permissions"])
 
-	// MAP STUDENTID
+	// Mahasiswa → Map ke students.id
 	if role == "Mahasiswa" && userID != "" {
-		sid, err := repositories.GetStudentIDByUserID(context.Background(), userID)
-		if err == nil && sid != "" {
-			c.Locals("studentID", sid)
+		studentID, _ := repositories.GetStudentIDByUserID(context.Background(), userID)
+		if studentID != "" {
+			c.Locals("studentID", studentID)
 		}
 	}
 
-	// MAP LECTURERID (pakai lecturers.id, BUKAN users.id)
+	// Dosen Wali → Map KE lecturer.id (bukan users.id)
 	if role == "Dosen Wali" && userID != "" {
-		lecturer, err := repositories.GetLecturerByUserID(context.Background(), userID)
-		if err == nil {
-			c.Locals("lecturerID", lecturer.ID.String())
+		lecturerID, _ := repositories.GetLecturerIDByUserID(context.Background(), userID)
+		if lecturerID != "" {
+			c.Locals("lecturerID", lecturerID)
 		}
 	}
 

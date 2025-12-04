@@ -26,38 +26,27 @@ func JWTMiddleware(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired token"})
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token claims"})
-	}
+	claims := token.Claims.(jwt.MapClaims)
 
-	userID := ""
-	role := ""
-
-	if v, ok := claims["user_id"].(string); ok {
-		userID = v
-	}
-	if v, ok := claims["role"].(string); ok {
-		role = v
-	}
+	userID, _ := claims["user_id"].(string)
+	role, _ := claims["role"].(string)
 
 	c.Locals("userID", userID)
 	c.Locals("role", role)
-	c.Locals("permissions", claims["permissions"])
 
-	// MAP STUDENTID
-	if role == "Mahasiswa" && userID != "" {
-		sid, err := repositories.GetStudentIDByUserID(context.Background(), userID)
-		if err == nil && sid != "" {
-			c.Locals("studentID", sid)
+	// Map student
+	if role == "Mahasiswa" {
+		studentID, _ := repositories.GetStudentIDByUserID(context.Background(), userID)
+		if studentID != "" {
+			c.Locals("studentID", studentID)
 		}
 	}
 
-	// MAP LECTURERID (pakai lecturers.id, BUKAN users.id)
-	if role == "Dosen Wali" && userID != "" {
-		lecturer, err := repositories.GetLecturerByUserID(context.Background(), userID)
-		if err == nil {
-			c.Locals("lecturerID", lecturer.ID.String())
+	// Map lecturer (IMPORTANT: use lecturers.id, not userID!)
+	if role == "Dosen Wali" {
+		lecturerID, _ := repositories.GetLecturerIDByUserID(context.Background(), userID)
+		if lecturerID != "" {
+			c.Locals("lecturerID", lecturerID)
 		}
 	}
 
