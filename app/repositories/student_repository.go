@@ -160,3 +160,38 @@ func IsStudentAdvisee(ctx context.Context, studentID string, lecturerID string) 
 
 	return count > 0, nil
 }
+
+func GetAllStudents(ctx context.Context) ([]models.Student, error) {
+	rows, err := database.DB.Query(ctx,
+		`SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at 
+		 FROM students`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.Student
+	for rows.Next() {
+		var s models.Student
+		if err := rows.Scan(
+			&s.ID, &s.UserID, &s.StudentID,
+			&s.ProgramStudy, &s.AcademicYear,
+			&s.AdvisorID, &s.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, s)
+	}
+
+	return list, nil
+}
+
+func UpdateAdvisor(ctx context.Context, studentID uuid.UUID, lecturerID uuid.UUID) error {
+	_, err := database.DB.Exec(ctx,
+		`UPDATE students SET advisor_id=$2 WHERE id=$1`,
+		studentID, lecturerID,
+	)
+	return err
+}
+
+

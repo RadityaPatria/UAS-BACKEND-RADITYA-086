@@ -77,3 +77,5 @@ func DeleteLecturer(ctx context.Context, id string) error {
 	_, err := database.DB.Exec(ctx, `DELETE FROM lecturers WHERE id=$1`, id)
 	return err
 }
+
+
