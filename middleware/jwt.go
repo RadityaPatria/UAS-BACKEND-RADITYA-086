@@ -45,7 +45,7 @@ func JWTMiddleware(c *fiber.Ctx) error {
 	c.Locals("role", role)
 	c.Locals("permissions", claims["permissions"])
 
-	// MAP STUDENTID
+	// MAP STUDENT ID
 	if role == "Mahasiswa" && userID != "" {
 		sid, err := repositories.GetStudentIDByUserID(context.Background(), userID)
 		if err == nil && sid != "" {
@@ -53,12 +53,17 @@ func JWTMiddleware(c *fiber.Ctx) error {
 		}
 	}
 
-	// MAP LECTURERID (pakai lecturers.id, BUKAN users.id)
+	// MAP LECTURER ID
 	if role == "Dosen Wali" && userID != "" {
 		lecturer, err := repositories.GetLecturerByUserID(context.Background(), userID)
-		if err == nil {
-			c.Locals("lecturerID", lecturer.ID.String())
+		if err != nil || lecturer == nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "lecturer profile not found for this user",
+			})
 		}
+
+		// lecturers.id → UUID
+		c.Locals("lecturerID", lecturer.ID.String())
 	}
 
 	return c.Next()

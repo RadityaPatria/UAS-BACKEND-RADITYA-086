@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"UAS-backend/app/models"
+	 "github.com/google/uuid" 
 	"UAS-backend/database"
 )
 
@@ -75,15 +76,26 @@ func SetAchievementRejectionNote(ctx context.Context, id string, note string) er
 // -------------------------------------------------------
 // SetVerifiedBy (Dosen Wali Verifikasi)
 // -------------------------------------------------------
-func SetVerifiedBy(ctx context.Context, id string, lecturerID string) error {
-	_, err := database.DB.Exec(ctx,
-		`UPDATE achievement_references
-		 SET verified_by=$2, verified_at=NOW(), updated_at=NOW()
-		 WHERE id=$1`,
-		id, lecturerID,
-	)
-	return err
+func SetVerifiedBy(ctx context.Context, refID string, lecturerID string) error {
+
+    // Parse lecturerID ke UUID (WAJIB)
+    lecturerUUID, err := uuid.Parse(lecturerID)
+    if err != nil {
+        return err   // lecturerID bukan UUID -> pasti error
+    }
+
+    // Update PostgreSQL
+    _, err = database.DB.Exec(ctx,
+        `UPDATE achievement_references
+         SET verified_by = $1,
+             verified_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $2`,
+        lecturerUUID, refID,
+    )
+    return err
 }
+
 
 // -------------------------------------------------------
 // GetAchievementReferencesByStudentIDs

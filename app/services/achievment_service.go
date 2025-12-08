@@ -122,32 +122,48 @@ func UpdateAchievement(c *fiber.Ctx) error {
 
 // POST /api/v1/achievements/:id/submit
 func SubmitAchievement(c *fiber.Ctx) error {
-	ctx := context.Background()
-	refID := c.Params("id")
+    ctx := context.Background()
+    refID := c.Params("id")
 
-	ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
+    ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
+    if err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "not found"})
+    }
 
-	// ownership
-	studentLocal := c.Locals("studentID")
-	if studentLocal == nil || ref.StudentID.String() != studentLocal.(string) {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
-	}
+    studentLocal := c.Locals("studentID")
+    if studentLocal == nil || ref.StudentID.String() != studentLocal.(string) {
+        return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
+    }
 
-	if ref.Status != models.StatusDraft {
-		return c.Status(400).JSON(fiber.Map{"error": "only draft can be submitted"})
-	}
+    if ref.Status != models.StatusDraft {
+        return c.Status(400).JSON(fiber.Map{"error": "only draft can be submitted"})
+    }
 
-	// set submitted
-	if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusSubmitted); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
+    // Update Postgre
+    if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusSubmitted); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
 
-	// set submitted_at in db (GetAchievementReferenceByID returns updated when fetched later)
-	return c.JSON(fiber.Map{"status": "success", "message": "submitted"})
+    // Update Mongo
+    mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
+
+    updateMongo := bson.M{
+    "$set": bson.M{
+        "status":      models.StatusSubmitted,
+        "updatedAt":   time.Now(),
+        "submittedAt": time.Now(),
+    },
 }
+
+if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
+    return c.Status(500).JSON(fiber.Map{"error": "failed to update mongo: " + err.Error()})
+}
+
+
+    return c.JSON(fiber.Map{"status": "success", "message": "submitted"})
+}
+
+
 
 // DELETE /api/v1/achievements/:id
 func DeleteAchievement(c *fiber.Ctx) error {
@@ -224,70 +240,112 @@ func ListAchievements(c *fiber.Ctx) error {
 
 // POST /api/v1/achievements/:id/verify  (Dosen Wali)
 func VerifyAchievement(c *fiber.Ctx) error {
-	ctx := context.Background()
-	refID := c.Params("id")
-	lecturerID := c.Locals("lecturerID").(string)
+    ctx := context.Background()
+    refID := c.Params("id")
 
-	ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
+    lecturerIDraw := c.Locals("lecturerID")
+    if lecturerIDraw == nil {
+        return c.Status(403).JSON(fiber.Map{"error": "lecturerID not found"})
+    }
+    lecturerID := lecturerIDraw.(string) // <-- DIPAKAI, jadi tidak unused
 
-	// cek apakah mahasiswa adalah bimbingan dosen tersebut
-	isAdvisee, err := repositories.IsStudentAdvisee(ctx, ref.StudentID.String(), lecturerID)
-	if err != nil || !isAdvisee {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
-	}
+    // Ambil ref di PostgreSQL
+    ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
+    if err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "achievement reference not found"})
+    }
 
-	if ref.Status != models.StatusSubmitted {
-		return c.Status(400).JSON(fiber.Map{"error": "only submitted can be verified"})
-	}
+    // Hanya boleh verify kalau status SUBMITTED
+    if ref.Status != models.StatusSubmitted {
+        return c.Status(400).JSON(fiber.Map{"error": "only submitted can be verified"})
+    }
 
-	if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusVerified); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
+    // --- UPDATE POSTGRES ---
+    if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusVerified); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "failed to update reference: " + err.Error()})
+    }
 
-	if err := repositories.SetVerifiedBy(ctx, refID, lecturerID); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
+    if err := repositories.SetVerifiedBy(ctx, refID, lecturerID); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "failed to set verified_by: " + err.Error()})
+    }
 
-	return c.JSON(fiber.Map{"status": "success", "message": "verified"})
+    // --- UPDATE MONGO ---
+    mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
+
+  	updateMongo := bson.M{
+    "$set": bson.M{
+        "status":     models.StatusVerified,
+        "verifiedBy": lecturerID,
+        "verifiedAt": time.Now(),
+        "updatedAt":  time.Now(),
+    },
 }
 
 
-// POST /api/v1/achievements/:id/reject  (Dosen Wali)
+    if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "mongo sync failed: " + err.Error()})
+    }
+
+    return c.JSON(fiber.Map{"status": "success", "message": "verified"})
+}
+
+
+
+
+/// POST /api/v1/achievements/:id/reject  (Dosen Wali)
 func RejectAchievement(c *fiber.Ctx) error {
-	ctx := context.Background()
-	refID := c.Params("id")
-	lecturerID := c.Locals("lecturerID").(string)
+    ctx := context.Background()
+    refID := c.Params("id")
 
-	var body struct {
-		Note string `json:"note"`
-	}
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
-	}
+    lecturerIDraw := c.Locals("lecturerID")
+    if lecturerIDraw == nil {
+        return c.Status(403).JSON(fiber.Map{"error": "lecturerID not found"})
+    }
+    lecturerID := lecturerIDraw.(string) // <-- DIPAKAI, jadi tidak unused
 
-	ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
+    var body struct {
+        Note string `json:"note"`
+    }
+    if err := c.BodyParser(&body); err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+    }
 
-	// cek apakah mahasiswa adalah advisee dosen tersebut
-	isAdvisee, err := repositories.IsStudentAdvisee(ctx, ref.StudentID.String(), lecturerID)
-	if err != nil || !isAdvisee {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
-	}
+    ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
+    if err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "achievement reference not found"})
+    }
 
-	if ref.Status != models.StatusSubmitted {
-		return c.Status(400).JSON(fiber.Map{"error": "only submitted can be rejected"})
-	}
+    if ref.Status != models.StatusSubmitted {
+        return c.Status(400).JSON(fiber.Map{"error": "only submitted can be rejected"})
+    }
 
-	if err := repositories.SetAchievementRejectionNote(ctx, refID, body.Note); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
+    // --- UPDATE POSTGRES ---
+    if err := repositories.SetAchievementRejectionNote(ctx, refID, body.Note); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
 
-	return c.JSON(fiber.Map{"status": "success", "message": "rejected"})
+    if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusRejected); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
+
+    // --- UPDATE MONGO ---
+    mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
+
+   updateMongo := bson.M{
+    "$set": bson.M{
+        "status":        models.StatusRejected,
+        "rejectionNote": body.Note,
+        "rejectedBy":    lecturerID,
+        "rejectedAt":    time.Now(),
+        "updatedAt":     time.Now(),
+    },
+}
+
+    if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "mongo sync failed: " + err.Error()})
+    }
+
+    return c.JSON(fiber.Map{"status": "success", "message": "rejected"})
 }
 
 
@@ -322,21 +380,52 @@ func GetAchievementHistory(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "history": ref})
 }
 
-// POST /api/v1/achievements/:id/attachments
 func AddAttachment(c *fiber.Ctx) error {
-	ctx := context.Background()
-	refID := c.Params("id")
-	var att models.Attachment
-	if err := c.BodyParser(&att); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
-	}
-	ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
-	mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
-	if err := repositories.AddAttachmentToAchievement(ctx, mongoID, att); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.JSON(fiber.Map{"status": "success", "message": "attachment added"})
+    ctx := context.Background()
+    refID := c.Params("id")
+
+    // Ambil file dari form-data
+    file, err := c.FormFile("file")
+    if err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "file required"})
+    }
+
+    // Simpan file ke folder uploads
+    filePath := "./uploads/" + file.Filename
+    if err := c.SaveFile(file, filePath); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "failed to save file"})
+    }
+
+    // Buat attachment sesuai model
+    att := models.Attachment{
+        FileName:   file.Filename,
+        FileURL:    filePath,
+        FileType:   file.Header.Get("Content-Type"),
+        UploadedAt: time.Now(),
+    }
+
+    // Ambil reference dari Postgres
+    ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
+    if err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "reference not found"})
+    }
+
+    // Convert Mongo ID
+    mongoID, err := primitive.ObjectIDFromHex(ref.MongoAchievementID)
+    if err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "invalid mongo id"})
+    }
+
+    // Push attachment ke Mongo
+    if err := repositories.AddAttachmentToAchievement(ctx, mongoID, att); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
+
+    return c.JSON(fiber.Map{
+        "status":  "success",
+        "message": "attachment added",
+        "attachment": att,
+    })
 }
+
+

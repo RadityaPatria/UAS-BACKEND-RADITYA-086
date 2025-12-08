@@ -20,13 +20,20 @@ func collAchievements() *mongo.Collection {
 // CreateAchievementMongo
 // -------------------------------------------------------
 func CreateAchievementMongo(ctx context.Context, a *models.AchievementMongo) (primitive.ObjectID, error) {
-	a.ID = primitive.NewObjectID()
-	a.CreatedAt = time.Now()
-	a.UpdatedAt = time.Now()
+    a.ID = primitive.NewObjectID()
+    a.CreatedAt = time.Now()
+    a.UpdatedAt = time.Now()
 
-	_, err := collAchievements().InsertOne(ctx, a)
-	return a.ID, err
+    // WAJIB: default attachments
+    if a.Attachments == nil {
+        a.Attachments = []models.Attachment{}
+    }
+
+    _, err := collAchievements().InsertOne(ctx, a)
+    return a.ID, err
 }
+
+
 
 // -------------------------------------------------------
 // GetAchievementMongoByID
@@ -38,18 +45,17 @@ func GetAchievementMongoByID(ctx context.Context, id primitive.ObjectID) (*model
 }
 
 // -------------------------------------------------------
-// UpdateAchievementMongo
-// -------------------------------------------------------
 func UpdateAchievementMongo(ctx context.Context, id primitive.ObjectID, update bson.M) error {
-	update["updatedAt"] = time.Now()
 
-	_, err := collAchievements().UpdateOne(
-		ctx,
-		bson.M{"_id": id},
-		bson.M{"$set": update},
-	)
-	return err
+    _, err := collAchievements().UpdateOne(
+        ctx,
+        bson.M{"_id": id},
+        update,
+    )
+
+    return err
 }
+
 
 // -------------------------------------------------------
 // SoftDeleteAchievementMongo (uses status=deleted)
@@ -70,17 +76,34 @@ func SoftDeleteAchievementMongo(ctx context.Context, id primitive.ObjectID) erro
 
 // -------------------------------------------------------
 // AddAttachmentToAchievement
-// -------------------------------------------------------
 func AddAttachmentToAchievement(ctx context.Context, id primitive.ObjectID, att models.Attachment) error {
-	att.UploadedAt = time.Now()
+    att.UploadedAt = time.Now()
 
-	_, err := collAchievements().UpdateOne(
-		ctx,
-		bson.M{"_id": id},
-		bson.M{
-			"$push": bson.M{"attachments": att},
-			"$set":  bson.M{"updatedAt": time.Now()},
-		},
-	)
-	return err
+    // 1️⃣ Pastikan attachments sudah array
+    _, _ = collAchievements().UpdateOne(
+        ctx,
+        bson.M{"_id": id, "attachments": bson.M{"$exists": false}},
+        bson.M{"$set": bson.M{"attachments": []models.Attachment{}}},
+    )
+
+    _, _ = collAchievements().UpdateOne(
+        ctx,
+        bson.M{"_id": id, "attachments": nil},
+        bson.M{"$set": bson.M{"attachments": []models.Attachment{}}},
+    )
+
+    // 2️⃣ Sekarang push aman
+    _, err := collAchievements().UpdateOne(
+        ctx,
+        bson.M{"_id": id},
+        bson.M{
+            "$push": bson.M{"attachments": att},
+            "$set":  bson.M{"updatedAt": time.Now()},
+        },
+    )
+
+    return err
 }
+
+
+
