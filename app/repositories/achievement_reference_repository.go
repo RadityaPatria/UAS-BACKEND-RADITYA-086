@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"UAS-backend/app/models"
-	 "github.com/google/uuid" 
+	"github.com/google/uuid" 
 	"UAS-backend/database"
 )
 
@@ -63,29 +63,25 @@ func UpdateAchievementReferenceStatus(ctx context.Context, id string, status str
 // -------------------------------------------------------
 // SetAchievementRejectionNote
 // -------------------------------------------------------
-func SetAchievementRejectionNote(ctx context.Context, id string, note string) error {
-	_, err := database.DB.Exec(ctx,
-		`UPDATE achievement_references 
-		 SET rejection_note=$2, status='rejected', updated_at=NOW() 
-		 WHERE id=$1`,
-		id, note,
-	)
-	return err
+func RejectAchievementPostgres(ctx context.Context, refID string, note string) error {
+    _, err := database.DB.Exec(ctx,
+        `UPDATE achievement_references
+         SET rejection_note = $1,
+             status = 'rejected',
+             updated_at = NOW()
+         WHERE id = $2`,
+        note, refID,
+    )
+    return err
 }
+
 
 // -------------------------------------------------------
 // SetVerifiedBy (Dosen Wali Verifikasi)
 // -------------------------------------------------------
-func SetVerifiedBy(ctx context.Context, refID string, lecturerID string) error {
+func SetVerifiedBy(ctx context.Context, refID string, lecturerUUID uuid.UUID) error {
 
-    // Parse lecturerID ke UUID (WAJIB)
-    lecturerUUID, err := uuid.Parse(lecturerID)
-    if err != nil {
-        return err   // lecturerID bukan UUID -> pasti error
-    }
-
-    // Update PostgreSQL
-    _, err = database.DB.Exec(ctx,
+    _, err := database.DB.Exec(ctx,
         `UPDATE achievement_references
          SET verified_by = $1,
              verified_at = NOW(),
@@ -95,6 +91,20 @@ func SetVerifiedBy(ctx context.Context, refID string, lecturerID string) error {
     )
     return err
 }
+
+
+func SetSubmitted(ctx context.Context, refID string) error {
+    _, err := database.DB.Exec(ctx,
+        `UPDATE achievement_references
+         SET status = 'submitted',
+             submitted_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1`,
+        refID,
+    )
+    return err
+}
+
 
 
 // -------------------------------------------------------

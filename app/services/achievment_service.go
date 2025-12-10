@@ -139,29 +139,36 @@ func SubmitAchievement(c *fiber.Ctx) error {
         return c.Status(400).JSON(fiber.Map{"error": "only draft can be submitted"})
     }
 
-    // Update Postgre
-    if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusSubmitted); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    // Update Postgres — FIX SUBMITTED_AT
+    if err := repositories.SetSubmitted(ctx, refID); err != nil {
+        return c.Status(500).JSON(fiber.Map{
+            "error": "failed to update postgres: " + err.Error(),
+        })
     }
 
     // Update Mongo
     mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
 
     updateMongo := bson.M{
-    "$set": bson.M{
-        "status":      models.StatusSubmitted,
-        "updatedAt":   time.Now(),
-        "submittedAt": time.Now(),
-    },
+        "$set": bson.M{
+            "status":      models.StatusSubmitted,
+            "submittedAt": time.Now(),
+            "updatedAt":   time.Now(),
+        },
+    }
+
+    if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
+        return c.Status(500).JSON(fiber.Map{
+            "error": "failed to update mongo: " + err.Error(),
+        })
+    }
+
+    return c.JSON(fiber.Map{
+        "status":  "success",
+        "message": "submitted",
+    })
 }
 
-if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
-    return c.Status(500).JSON(fiber.Map{"error": "failed to update mongo: " + err.Error()})
-}
-
-
-    return c.JSON(fiber.Map{"status": "success", "message": "submitted"})
-}
 
 
 
@@ -238,7 +245,6 @@ func ListAchievements(c *fiber.Ctx) error {
 }
 
 
-// POST /api/v1/achievements/:id/verify  (Dosen Wali)
 func VerifyAchievement(c *fiber.Ctx) error {
     ctx := context.Background()
     refID := c.Params("id")
@@ -247,52 +253,73 @@ func VerifyAchievement(c *fiber.Ctx) error {
     if lecturerIDraw == nil {
         return c.Status(403).JSON(fiber.Map{"error": "lecturerID not found"})
     }
-    lecturerID := lecturerIDraw.(string) // <-- DIPAKAI, jadi tidak unused
 
-    // Ambil ref di PostgreSQL
+    lecturerID := lecturerIDraw.(string)
+
+    lecturerUUID, err := uuid.Parse(lecturerID)
+    if err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "invalid lecturer uuid"})
+    }
+
     ref, err := repositories.GetAchievementReferenceByID(ctx, refID)
     if err != nil {
         return c.Status(404).JSON(fiber.Map{"error": "achievement reference not found"})
     }
 
-    // Hanya boleh verify kalau status SUBMITTED
     if ref.Status != models.StatusSubmitted {
         return c.Status(400).JSON(fiber.Map{"error": "only submitted can be verified"})
     }
 
-    // --- UPDATE POSTGRES ---
+    // 1️⃣ UPDATE verified_by terlebih dahulu
+    if err := repositories.SetVerifiedBy(ctx, refID, lecturerUUID); err != nil {
+        return c.Status(500).JSON(fiber.Map{
+            "error": "failed to set verified_by: " + err.Error(),
+        })
+    }
+
+    // 2️⃣ UPDATE status = verified
     if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusVerified); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": "failed to update reference: " + err.Error()})
+        return c.Status(500).JSON(fiber.Map{
+            "error": "failed to update status: " + err.Error(),
+        })
     }
 
-    if err := repositories.SetVerifiedBy(ctx, refID, lecturerID); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": "failed to set verified_by: " + err.Error()})
+    // 3️⃣ PARSE MONGO ID (WAJIB CEK ERROR)
+    mongoID, err := primitive.ObjectIDFromHex(ref.MongoAchievementID)
+    if err != nil {
+        return c.Status(500).JSON(fiber.Map{
+            "error": "invalid mongo ObjectID: " + err.Error(),
+        })
     }
 
-    // --- UPDATE MONGO ---
-    mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
-
-  	updateMongo := bson.M{
-    "$set": bson.M{
-        "status":     models.StatusVerified,
-        "verifiedBy": lecturerID,
-        "verifiedAt": time.Now(),
-        "updatedAt":  time.Now(),
-    },
-}
-
+    // 4️⃣ UPDATE MONGO
+    updateMongo := bson.M{
+        "$set": bson.M{
+            "status":     models.StatusVerified,
+            "verifiedBy": lecturerUUID.String(),
+            "verifiedAt": time.Now(),
+            "updatedAt":  time.Now(),
+        },
+    }
 
     if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": "mongo sync failed: " + err.Error()})
+        return c.Status(500).JSON(fiber.Map{
+            "error": "mongo sync failed: " + err.Error(),
+        })
     }
 
-    return c.JSON(fiber.Map{"status": "success", "message": "verified"})
+    return c.JSON(fiber.Map{
+        "status":  "success",
+        "message": "verified",
+    })
 }
 
 
 
 
-/// POST /api/v1/achievements/:id/reject  (Dosen Wali)
+
+
+// POST /api/v1/achievements/:id/reject  (Dosen Wali)
 func RejectAchievement(c *fiber.Ctx) error {
     ctx := context.Background()
     refID := c.Params("id")
@@ -301,7 +328,11 @@ func RejectAchievement(c *fiber.Ctx) error {
     if lecturerIDraw == nil {
         return c.Status(403).JSON(fiber.Map{"error": "lecturerID not found"})
     }
-    lecturerID := lecturerIDraw.(string) // <-- DIPAKAI, jadi tidak unused
+
+    lecturerUUID, err := uuid.Parse(lecturerIDraw.(string))
+    if err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "invalid lecturer UUID"})
+    }
 
     var body struct {
         Note string `json:"note"`
@@ -319,27 +350,23 @@ func RejectAchievement(c *fiber.Ctx) error {
         return c.Status(400).JSON(fiber.Map{"error": "only submitted can be rejected"})
     }
 
-    // --- UPDATE POSTGRES ---
-    if err := repositories.SetAchievementRejectionNote(ctx, refID, body.Note); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-    }
-
-    if err := repositories.UpdateAchievementReferenceStatus(ctx, refID, models.StatusRejected); err != nil {
-        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    // --- UPDATE POSTGRES SESUAI STRUCT ---
+    if err := repositories.RejectAchievementPostgres(ctx, refID, body.Note); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "postgres update failed: " + err.Error()})
     }
 
     // --- UPDATE MONGO ---
     mongoID, _ := primitive.ObjectIDFromHex(ref.MongoAchievementID)
 
-   updateMongo := bson.M{
-    "$set": bson.M{
-        "status":        models.StatusRejected,
-        "rejectionNote": body.Note,
-        "rejectedBy":    lecturerID,
-        "rejectedAt":    time.Now(),
-        "updatedAt":     time.Now(),
-    },
-}
+    updateMongo := bson.M{
+        "$set": bson.M{
+            "status":        models.StatusRejected,
+            "rejectionNote": body.Note,
+            "rejectedBy":    lecturerUUID.String(), // MONGO ONLY
+            "rejectedAt":    time.Now(),           // MONGO ONLY
+            "updatedAt":     time.Now(),
+        },
+    }
 
     if err := repositories.UpdateAchievementMongo(ctx, mongoID, updateMongo); err != nil {
         return c.Status(500).JSON(fiber.Map{"error": "mongo sync failed: " + err.Error()})
@@ -347,6 +374,7 @@ func RejectAchievement(c *fiber.Ctx) error {
 
     return c.JSON(fiber.Map{"status": "success", "message": "rejected"})
 }
+
 
 
 // GET /api/v1/achievements/:id

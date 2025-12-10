@@ -161,16 +161,29 @@ func UpdateUser(c *fiber.Ctx) error {
 // DELETE /api/v1/users/:id
 // ====================================================================
 func DeleteUser(c *fiber.Ctx) error {
-	id := c.Params("id")
+	// Ambil parameter 'id' dari URL
+	idString := c.Params("id")
 	ctx := context.Background()
 
-	err := repositories.DeleteUser(ctx, id)
+	// 1. VALIDASI UUID
+	// Memastikan ID yang diberikan adalah format UUID yang valid
+	if _, err := uuid.Parse(idString); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ID format is invalid. Must be a valid UUID.",
+		})
+	}
+	
+	// 2. LANJUTKAN KE REPOSITORY
+	// Memanggil fungsi repository untuk menghapus user dari database
+	err := repositories.DeleteUser(ctx, idString)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		// Mengembalikan error database atau internal server error lainnya
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
+	// 3. RESPONS SUKSES
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "user deleted",
