@@ -2,26 +2,33 @@ package middleware
 
 import "github.com/gofiber/fiber/v2"
 
+// RequirePermission
+// FR-002: RBAC Middleware
 func RequirePermission(permission string) fiber.Handler {
-    return func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
 
-        raw := c.Locals("permissions")
-        if raw == nil {
-            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-                "error": "forbidden: no permissions found in token",
-            })
-        }
+		rawPerms := c.Locals("permissions")
+		if rawPerms == nil {
+			return forbidden(c, "no permissions found")
+		}
 
-        perms := raw.([]interface{})
+		perms, ok := rawPerms.([]interface{})
+		if !ok {
+			return forbidden(c, "invalid permissions format")
+		}
 
-        for _, p := range perms {
-            if p.(string) == permission {
-                return c.Next()
-            }
-        }
+		for _, p := range perms {
+			if p.(string) == permission {
+				return c.Next()
+			}
+		}
 
-        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-            "error": "forbidden: missing permission " + permission,
-        })
-    }
+		return forbidden(c, "missing permission: "+permission)
+	}
+}
+
+func forbidden(c *fiber.Ctx, msg string) error {
+	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+		"error": msg,
+	})
 }

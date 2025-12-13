@@ -1,39 +1,29 @@
 package middleware
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"strings"
 
-// rolesAllowed = ["Admin", "Dosen Wali", "Mahasiswa"]
+	"github.com/gofiber/fiber/v2"
+)
+
+// RequireRoles
+// FR-002: RBAC Middleware
 func RequireRoles(rolesAllowed ...string) fiber.Handler {
-    return func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
 
-        rawRole := c.Locals("role")
-        if rawRole == nil {
-            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-                "error": "forbidden: role not found",
-            })
-        }
+		rawRole := c.Locals("role")
+		if rawRole == nil {
+			return forbidden(c, "role not found")
+		}
 
-        userRole := rawRole.(string)
+		userRole := rawRole.(string)
 
-        for _, allowed := range rolesAllowed {
-            if userRole == allowed {
-                return c.Next()
-            }
-        }
+		for _, role := range rolesAllowed {
+			if userRole == role {
+				return c.Next()
+			}
+		}
 
-        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-            "error": "forbidden: only " + joinRoles(rolesAllowed) + " can access this endpoint",
-        })
-    }
-}
-
-func joinRoles(roles []string) string {
-    if len(roles) == 1 {
-        return roles[0]
-    }
-    res := roles[0]
-    for i := 1; i < len(roles); i++ {
-        res += ", " + roles[i]
-    }
-    return res
+		return forbidden(c, "only ["+strings.Join(rolesAllowed, ", ")+"] can access this endpoint")
+	}
 }

@@ -8,11 +8,14 @@ import (
 )
 
 func RegisterStudentRoutes(app *fiber.App) {
-	r := app.Group("/api/v1/students")
-	r.Use(middleware.JWTMiddleware)
+    r := app.Group("/api/v1/students")
 
-	r.Get("/", services.GetAllStudents)
-	r.Get("/:id", services.GetStudentByID)
-	r.Get("/:id/achievements", services.GetStudentAchievements)
-	r.Put("/:id/advisor", middleware.RequireRoles("Admin"), services.UpdateStudentAdvisor)
+    r.Use(middleware.JWTMiddleware)
+
+    r.Get("/", services.GetAllStudents)
+    r.Get("/:id", services.GetStudentByID)
+    r.Get("/:id/achievements", services.GetStudentAchievements)
+
+    // Only Admin can update advisor
+    r.Put("/:id/advisor", middleware.RequireRoles("Admin"), services.UpdateStudentAdvisor)
 }

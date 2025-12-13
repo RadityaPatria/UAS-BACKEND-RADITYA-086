@@ -10,7 +10,6 @@ import (
 func RegisterUserRoutes(app *fiber.App) {
     r := app.Group("/api/v1/users")
 
-    // Hanya Admin yang boleh akses seluruh CRUD user
     r.Use(middleware.JWTMiddleware)
     r.Use(middleware.RequireRoles("Admin"))
 
