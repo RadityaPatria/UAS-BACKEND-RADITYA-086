@@ -21,18 +21,14 @@ func main() {
 	// Create Fiber App
 	app := fiber.New()
 
-	// ===============================
 	// Register Routes (urut rapi)
-	// ===============================
 	routes.RegisterAuthRoutes(app)
 	routes.RegisterUserRoutes(app)
 	routes.RegisterAchievementRoutes(app)
-
 	routes.RegisterStudentRoutes(app)
 	routes.RegisterLecturerRoutes(app)
 	routes.RegisterReportRoutes(app)
-	// ===============================
-
+	
 	// Start server
 	log.Println("🚀 Server running on port", cfg.AppPort)
 	app.Listen(":" + cfg.AppPort)

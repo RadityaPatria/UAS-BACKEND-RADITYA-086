@@ -8,17 +8,17 @@ import (
 )
 
 func RegisterReportRoutes(app *fiber.App) {
-    r := app.Group("/api/v1/reports")
-    r.Use(middleware.JWTMiddleware)
+	r := app.Group("/api/v1/reports")
 
-    // Statistik hanya Admin
-    r.Get("/statistics",
-        middleware.RequireRoles("Admin"),
-        services.GetAchievementStatistics)
+	r.Use(middleware.JWTMiddleware)
 
-    // Report per mahasiswa → Admin & Dosen Wali
-    r.Get("/student/:id",
-        middleware.RequireRoles("Admin", "Dosen Wali"),
-        services.GetStudentReport)
+	// GET /statistics -> statistik prestasi (Admin) | FR-008
+	r.Get("/statistics",
+		middleware.RequireRoles("Admin"),
+		services.GetAchievementStatistics)
+
+	// GET /student/:id -> laporan mahasiswa | FR-008
+	r.Get("/student/:id",
+		middleware.RequireRoles("Admin", "Dosen Wali"),
+		services.GetStudentReport)
 }
-

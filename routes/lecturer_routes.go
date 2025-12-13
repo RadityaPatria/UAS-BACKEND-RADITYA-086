@@ -8,15 +8,17 @@ import (
 )
 
 func RegisterLecturerRoutes(app *fiber.App) {
-    r := app.Group("/api/v1/lecturers")
-    r.Use(middleware.JWTMiddleware)
+	r := app.Group("/api/v1/lecturers")
 
-    // Admin only
-    r.Get("/", middleware.RequireRoles("Admin"), services.GetAllLecturers)
+	r.Use(middleware.JWTMiddleware)
 
-    // Admin & dosen wali
-    r.Get("/:id/advisees",
-        middleware.RequireRoles("Admin", "Dosen Wali"),
-        services.GetLecturerAdvisees)
+	// GET / -> list dosen (Admin) | FR-004
+	r.Get("/",
+		middleware.RequireRoles("Admin"),
+		services.GetAllLecturers)
+
+	// GET /:id/advisees -> mahasiswa bimbingan | FR-006
+	r.Get("/:id/advisees",
+		middleware.RequireRoles("Admin", "Dosen Wali"),
+		services.GetLecturerAdvisees)
 }
-
