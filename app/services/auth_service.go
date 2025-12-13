@@ -16,9 +16,8 @@ import (
 
 var jwtSecret = []byte("SECRET-JWT-UAS-BACKEND")
 
-// ======================================================
-// LOGIN
-// ======================================================
+
+// LoginHandler -> login user & generate JWT | FR-001
 func LoginHandler(c *fiber.Ctx) error {
 	var req struct {
 		Identifier string `json:"identifier"`
@@ -26,13 +25,17 @@ func LoginHandler(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid body",
+		})
 	}
 
 	ctx := context.Background()
 	resp, err := Login(ctx, req.Identifier, req.Password)
 	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(401).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	return c.JSON(fiber.Map{
@@ -41,6 +44,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	})
 }
 
+// Login -> validasi user, role, permission & JWT | FR-001
 func Login(ctx context.Context, identifier, password string) (interface{}, error) {
 	user, err := repositories.GetUserByIdentifier(ctx, identifier)
 	if err != nil {
@@ -51,7 +55,10 @@ func Login(ctx context.Context, identifier, password string) (interface{}, error
 		return nil, errors.New("user inactive")
 	}
 
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+	if bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(password),
+	) != nil {
 		return nil, errors.New("invalid username or password")
 	}
 
@@ -81,13 +88,14 @@ func Login(ctx context.Context, identifier, password string) (interface{}, error
 	}, nil
 }
 
-// ======================================================
-// REFRESH TOKEN (TANPA BODY)
-// ======================================================
+
+// RefreshTokenHandler -> refresh JWT tanpa body | FR-002
 func RefreshTokenHandler(c *fiber.Ctx) error {
 	auth := c.Get("Authorization")
 	if auth == "" {
-		return c.Status(401).JSON(fiber.Map{"error": "missing token"})
+		return c.Status(401).JSON(fiber.Map{
+			"error": "missing token",
+		})
 	}
 
 	tokenStr := strings.Replace(auth, "Bearer ", "", 1)
@@ -96,7 +104,9 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 		return jwtSecret, nil
 	})
 	if err != nil || !token.Valid {
-		return c.Status(401).JSON(fiber.Map{"error": "invalid token"})
+		return c.Status(401).JSON(fiber.Map{
+			"error": "invalid token",
+		})
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -107,16 +117,20 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 	ctx := context.Background()
 	user, err := repositories.GetUserByID(ctx, userID)
 	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"error": "user not found"})
+		return c.Status(401).JSON(fiber.Map{
+			"error": "user not found",
+		})
 	}
 
 	if user.TokenVersion != tokenVersion {
-		return c.Status(401).JSON(fiber.Map{"error": "token revoked"})
+		return c.Status(401).JSON(fiber.Map{
+			"error": "token revoked",
+		})
 	}
 
 	// invalidate old token
 	user.TokenVersion++
-	repositories.UpdateTokenVersion(ctx, user.ID.String(), user.TokenVersion)
+	_ = repositories.UpdateTokenVersion(ctx, user.ID.String(), user.TokenVersion)
 
 	role, _ := repositories.GetRoleByID(ctx, user.RoleID.String())
 	permIDs, _ := repositories.GetPermissionIDsByRoleID(ctx, user.RoleID.String())
@@ -130,9 +144,8 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 	})
 }
 
-// ======================================================
-// LOGOUT (INVALIDATE TOKEN)
-// ======================================================
+
+// LogoutHandler -> invalidate token user | FR-003
 func LogoutHandler(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 
@@ -140,7 +153,7 @@ func LogoutHandler(c *fiber.Ctx) error {
 	user, _ := repositories.GetUserByID(ctx, userID)
 
 	user.TokenVersion++
-	repositories.UpdateTokenVersion(ctx, user.ID.String(), user.TokenVersion)
+	_ = repositories.UpdateTokenVersion(ctx, user.ID.String(), user.TokenVersion)
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
@@ -148,9 +161,8 @@ func LogoutHandler(c *fiber.Ctx) error {
 	})
 }
 
-// ======================================================
-// PROFILE
-// ======================================================
+
+// GetProfileHandler -> ambil data user dari JWT | FR-004
 func GetProfileHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"user_id":     c.Locals("userID"),
@@ -159,9 +171,8 @@ func GetProfileHandler(c *fiber.Ctx) error {
 	})
 }
 
-// ======================================================
-// JWT GENERATOR
-// ======================================================
+
+// generateJWT -> generate token JWT | INTERNAL
 func generateJWT(user *models.User, role string, perms []models.Permission) (string, error) {
 	ps := []string{}
 	for _, p := range perms {
