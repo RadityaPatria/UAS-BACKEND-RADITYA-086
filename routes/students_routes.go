@@ -23,6 +23,5 @@ func RegisterStudentRoutes(app *fiber.App) {
 
 	// PUT /:id/advisor -> update dosen wali (Admin) | FR-004
 	r.Put("/:id/advisor",
-		middleware.RequireRoles("Admin"),
-		services.UpdateStudentAdvisor)
+		middleware.RequireRoles("Admin"), services.UpdateStudentAdvisor)
 }

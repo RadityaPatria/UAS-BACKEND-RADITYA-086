@@ -9,6 +9,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// @Summary      Get all lecturers
+// @Description  Ambil semua data dosen
+// @Tags         Lecturers
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]string
+// @Router       /lecturers [get]
+//
 // GetAllLecturers -> ambil semua dosen | FR-013
 func GetAllLecturers(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -24,6 +33,17 @@ func GetAllLecturers(c *fiber.Ctx) error {
 	})
 }
 
+// @Summary      Get lecturer advisees
+// @Description  Ambil daftar mahasiswa bimbingan dosen
+// @Tags         Lecturers
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      string  true  "Lecturer ID (UUID)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /lecturers/{id}/advisees [get]
+//
 // GetLecturerAdvisees -> ambil mahasiswa bimbingan dosen | FR-014
 func GetLecturerAdvisees(c *fiber.Ctx) error {
 	ctx := context.Background()

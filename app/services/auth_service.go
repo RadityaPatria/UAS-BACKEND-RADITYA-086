@@ -17,6 +17,18 @@ import (
 var jwtSecret = []byte("SECRET-JWT-UAS-BACKEND")
 
 
+// LoginHandler godoc
+// @Summary      Login user
+// @Description  Login menggunakan username atau email dan password
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{identifier=string,password=string}  true  "Login payload"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Router       /auth/login [post]
+//
 // LoginHandler -> login user & generate JWT | FR-001
 func LoginHandler(c *fiber.Ctx) error {
 	var req struct {
@@ -45,6 +57,7 @@ func LoginHandler(c *fiber.Ctx) error {
 }
 
 // Login -> validasi user, role, permission & JWT | FR-001
+// (INTERNAL FUNCTION - TIDAK PERLU SWAGGER)
 func Login(ctx context.Context, identifier, password string) (interface{}, error) {
 	user, err := repositories.GetUserByIdentifier(ctx, identifier)
 	if err != nil {
@@ -88,7 +101,16 @@ func Login(ctx context.Context, identifier, password string) (interface{}, error
 	}, nil
 }
 
-
+// RefreshTokenHandler godoc
+// @Summary      Refresh JWT token
+// @Description  Generate token baru menggunakan token lama (tanpa body)
+// @Tags         Auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Router       /auth/refresh [post]
+//
 // RefreshTokenHandler -> refresh JWT tanpa body | FR-002
 func RefreshTokenHandler(c *fiber.Ctx) error {
 	auth := c.Get("Authorization")
@@ -128,7 +150,6 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// invalidate old token
 	user.TokenVersion++
 	_ = repositories.UpdateTokenVersion(ctx, user.ID.String(), user.TokenVersion)
 
@@ -144,7 +165,15 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 	})
 }
 
-
+// LogoutHandler godoc
+// @Summary      Logout user
+// @Description  Invalidate JWT token (logout)
+// @Tags         Auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Router       /auth/logout [post]
+//
 // LogoutHandler -> invalidate token user | FR-003
 func LogoutHandler(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
@@ -161,7 +190,15 @@ func LogoutHandler(c *fiber.Ctx) error {
 	})
 }
 
-
+// GetProfileHandler godoc
+// @Summary      Get user profile
+// @Description  Ambil informasi user dari JWT
+// @Tags         Auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /auth/profile [get]
+//
 // GetProfileHandler -> ambil data user dari JWT | FR-004
 func GetProfileHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
@@ -171,8 +208,7 @@ func GetProfileHandler(c *fiber.Ctx) error {
 	})
 }
 
-
-// generateJWT -> generate token JWT | INTERNAL
+// generateJWT -> generate token JWT | INTERNAL (tidak perlu swagger)
 func generateJWT(user *models.User, role string, perms []models.Permission) (string, error) {
 	ps := []string{}
 	for _, p := range perms {

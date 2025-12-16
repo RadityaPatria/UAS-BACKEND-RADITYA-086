@@ -13,6 +13,20 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+
+
+// @Summary      Create Achievement
+// @Description  Mahasiswa membuat prestasi (MongoDB + PostgreSQL)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} map[string]interface{}
+// @Failure      400 {object} map[string]string
+// @Failure      401 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /achievements [post]
+//
 // CreateAchievement -> mahasiswa membuat prestasi (Mongo + Postgres) | FR-010
 func CreateAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -75,6 +89,20 @@ func CreateAchievement(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Update Achievement
+// @Description  Update prestasi (hanya status DRAFT)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Failure      404 {object} map[string]string
+// @Router       /achievements/{id} [put]
+//
 // UpdateAchievement -> update prestasi (hanya DRAFT) | FR-010
 func UpdateAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -121,6 +149,17 @@ func UpdateAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "updated"})
 }
 
+// @Summary      Submit Achievement
+// @Description  Kirim prestasi ke dosen wali
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Router       /achievements/{id}/submit [post]
+//
 // SubmitAchievement -> kirim prestasi ke dosen wali | FR-011
 func SubmitAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -156,6 +195,17 @@ func SubmitAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "submitted"})
 }
 
+// @Summary      Delete Achievement
+// @Description  Hapus prestasi (Mahasiswa / Admin)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Failure      404 {object} map[string]string
+// @Router       /achievements/{id} [delete]
+//
 // DeleteAchievement -> hapus prestasi (Mahasiswa/Admin) | FR-012
 func DeleteAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -185,6 +235,16 @@ func DeleteAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "deleted"})
 }
 
+
+// @Summary      List Achievements
+// @Description  List prestasi berdasarkan role (Admin / Dosen Wali / Mahasiswa)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} map[string]interface{}
+// @Failure      403 {object} map[string]string
+// @Router       /achievements [get]
+//
 // ListAchievements -> list prestasi berdasarkan role | FR-013
 func ListAchievements(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -217,6 +277,17 @@ func ListAchievements(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "data": list})
 }
 
+
+// @Summary      Verify Achievement
+// @Description  Verifikasi prestasi oleh Dosen Wali
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Router       /achievements/{id}/verify [post]
+//
 // VerifyAchievement -> verifikasi prestasi oleh dosen wali | FR-014
 func VerifyAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -245,6 +316,18 @@ func VerifyAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "verified"})
 }
 
+
+// @Summary      Reject Achievement
+// @Description  Tolak prestasi oleh Dosen Wali
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Router       /achievements/{id}/reject [post]
+//
 // RejectAchievement -> tolak prestasi oleh dosen wali | FR-014
 func RejectAchievement(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -274,6 +357,17 @@ func RejectAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "rejected"})
 }
 
+
+// @Summary      Achievement Detail
+// @Description  Detail prestasi (MongoDB + PostgreSQL)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]interface{}
+// @Failure      404 {object} map[string]string
+// @Router       /achievements/{id} [get]
+//
 // GetAchievementDetail -> detail prestasi (Mongo + Postgres) | FR-013
 func GetAchievementDetail(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -290,6 +384,17 @@ func GetAchievementDetail(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Achievement History
+// @Description  Riwayat status prestasi
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Achievement Reference ID"
+// @Success      200 {object} map[string]interface{}
+// @Failure      404 {object} map[string]string
+// @Router       /achievements/{id}/history [get]
+//
 // GetAchievementHistory -> riwayat status prestasi | FR-013
 func GetAchievementHistory(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -299,6 +404,19 @@ func GetAchievementHistory(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "history": ref})
 }
 
+
+// @Summary      Add Achievement Attachment
+// @Description  Upload lampiran prestasi
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        id   path string true "Achievement Reference ID"
+// @Param        file formData file true "Attachment File"
+// @Success      200 {object} map[string]interface{}
+// @Failure      400 {object} map[string]string
+// @Router       /achievements/{id}/attachment [post]
+//
 // AddAttachment -> upload lampiran prestasi | FR-010
 func AddAttachment(c *fiber.Ctx) error {
 	ctx := context.Background()

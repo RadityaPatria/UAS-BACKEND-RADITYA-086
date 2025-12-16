@@ -14,11 +14,9 @@ func RegisterLecturerRoutes(app *fiber.App) {
 
 	// GET / -> list dosen (Admin) | FR-004
 	r.Get("/",
-		middleware.RequireRoles("Admin"),
-		services.GetAllLecturers)
+		middleware.RequireRoles("Admin"), services.GetAllLecturers)
 
 	// GET /:id/advisees -> mahasiswa bimbingan | FR-006
 	r.Get("/:id/advisees",
-		middleware.RequireRoles("Admin", "Dosen Wali"),
-		services.GetLecturerAdvisees)
+		middleware.RequireRoles("Admin", "Dosen Wali"), services.GetLecturerAdvisees)
 }

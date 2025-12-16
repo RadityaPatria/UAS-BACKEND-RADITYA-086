@@ -13,6 +13,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+
+// @Summary      Get all users
+// @Description  Ambil semua data user (khusus Admin)
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]string
+// @Router       /users [get]
+//
 // GetAllUsers -> ambil semua user | FR-009
 func GetAllUsers(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -30,6 +40,18 @@ func GetAllUsers(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Get user by ID
+// @Description  Ambil detail user berdasarkan ID
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      string  true  "User ID (UUID)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /users/{id} [get]
+//
 // GetUserByID -> ambil user berdasarkan ID | FR-002
 func GetUserByID(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -59,6 +81,19 @@ func GetUserByID(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Create user
+// @Description  Tambah user baru dan otomatis membuat student atau lecturer sesuai role
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{}  true  "Create user payload"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users [post]
+//
 // CreateUser -> tambah user + auto student / lecturer | FR-009
 func CreateUser(c *fiber.Ctx) error {
 	var req struct {
@@ -163,6 +198,21 @@ func CreateUser(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Update user
+// @Description  Update data user berdasarkan ID
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string  true  "User ID"
+// @Param        body  body      object{} true  "Update user payload"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/{id} [put]
+//
 // UpdateUser -> update data user | FR-009
 func UpdateUser(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -216,6 +266,18 @@ func UpdateUser(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Delete user
+// @Description  Hapus user berdasarkan ID
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      string  true  "User ID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/{id} [delete]
+//
 // DeleteUser -> hapus user | FR-009
 func DeleteUser(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -235,6 +297,21 @@ func DeleteUser(c *fiber.Ctx) error {
 	})
 }
 
+
+// @Summary      Update user role
+// @Description  Ubah role user
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string  true  "User ID"
+// @Param        body  body      object{role_id=string} true "Role payload"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/{id}/role [put]
+//
 // UpdateUserRole -> update role user | FR-009
 func UpdateUserRole(c *fiber.Ctx) error {
 	id := c.Params("id")

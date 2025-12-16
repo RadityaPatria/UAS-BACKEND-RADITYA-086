@@ -28,14 +28,10 @@ func RegisterAchievementRoutes(app *fiber.App) {
 	r.Post("/:id/attachments", services.AddAttachment)
 
 	// POST /:id/verify -> verifikasi prestasi | FR-006
-	r.Post("/:id/verify",
-		middleware.RequireRoles("Dosen Wali"),
-		services.VerifyAchievement)
+	r.Post("/:id/verify", middleware.RequireRoles("Admin, Dosen Wali"),services.VerifyAchievement)
 
 	// POST /:id/reject -> tolak prestasi | FR-006
-	r.Post("/:id/reject",
-		middleware.RequireRoles("Dosen Wali"),
-		services.RejectAchievement)
+	r.Post("/:id/reject", middleware.RequireRoles("Admin, Dosen Wali"),services.RejectAchievement)
 
 	// GET / -> list prestasi | FR-007
 	r.Get("/", services.ListAchievements)

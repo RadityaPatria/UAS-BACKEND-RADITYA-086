@@ -9,6 +9,16 @@ import (
 	"github.com/google/uuid"
 )
 
+
+// @Summary      Achievement Statistics
+// @Description  Statistik pencapaian prestasi (total, status, dsb)
+// @Tags         Reports
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} map[string]interface{}
+// @Failure      500 {object} map[string]string
+// @Router       /reports/achievements/statistics [get]
+//
 // GetAchievementStatistics -> statistik pencapaian prestasi | FR-015
 func GetAchievementStatistics(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -26,6 +36,17 @@ func GetAchievementStatistics(c *fiber.Ctx) error {
 	})
 }
 
+// @Summary      Student Achievement Report
+// @Description  Laporan prestasi per mahasiswa
+// @Tags         Reports
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "Student ID (UUID)"
+// @Success      200 {object} map[string]interface{}
+// @Failure      400 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /reports/students/{id} [get]
+//
 // GetStudentReport -> laporan prestasi per mahasiswa | FR-016
 func GetStudentReport(c *fiber.Ctx) error {
 	ctx := context.Background()
